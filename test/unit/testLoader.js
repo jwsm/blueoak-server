@@ -505,3 +505,174 @@ describe('DI Loader test1.1 - test events', function () {
     });
 
 });
+
+describe('DI Loader test12 - test loading services individually', function () {
+    var testLoader;
+
+    beforeEach(function () {
+        testLoader = loader();
+    });
+
+    afterEach(function () {
+        testLoader.unload('service1');
+        testLoader.unload('service2');
+        testLoader.unload('service3');
+    });
+
+    it('Should init services loaded individually by file path', function (done) {
+
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test12/service1.js'));
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test12/service2.js'));
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test12/service3.js'));
+
+        var service5 = testLoader.get('service1');
+        var service6 = testLoader.get('service2');
+        var service7 = testLoader.get('service3');
+        testLoader.init(function(err) {
+            assert.equal(service5.isInitialized(), true);
+            assert.equal(service6.isInitialized(), true);
+            assert.equal(service7.isInitialized(), true);
+            done(err);
+        });
+    });
+
+});
+
+
+describe('DI Loader test13 - test loading services with mapped module ids', function () {
+    var testLoader;
+
+    beforeEach(function () {
+        testLoader = loader();
+    });
+
+    afterEach(function () {
+        testLoader.unload('service3');
+        testLoader.unload('service_1_mapped');
+        testLoader.unload('service_2_mapped');
+    });
+
+    it('Should init services loaded individually with mapped module ids', function (done) {
+
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test13/service1.js'),
+                               false,
+                               'service_1_mapped');
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test13/service2.js'),
+                               false,
+                               'service_2_mapped');
+
+        var service1 = testLoader.get('service1');
+        var service2 = testLoader.get('service2');
+        var service_1_mapped = testLoader.get('service_1_mapped');
+        var service_2_mapped = testLoader.get('service_2_mapped');
+
+        testLoader.init(function(err) {
+            assert.equal(err, undefined);
+            assert.equal(service1, undefined);
+            assert.equal(service2, undefined);
+            assert.equal(service_1_mapped.isInitialized(), true);
+            assert.equal(service_2_mapped.isInitialized(), true);
+            done(err);
+        });
+    });
+
+    it('Should fail to init a service if dependency names are changed by mapping', function (done) {
+
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test13/service1.js'),
+                               false,
+                               'service_1_mapped');
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test13/service2.js'),
+                               false,
+                               'service_2_mapped');
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test13/service3.js'));
+
+        var service1 = testLoader.get('service1');
+        var service2 = testLoader.get('service2');
+        var service_1_mapped = testLoader.get('service_1_mapped');
+        var service_2_mapped = testLoader.get('service_2_mapped');
+        var service3 = testLoader.get('service3');
+
+        testLoader.init(function(err) {
+            assert.equal((err + ''),
+                'Error: Error loading dependency service2 for service3: Cannot find module \'service2\'');
+            done();
+        });
+    });
+
+});
+
+
+describe('DI Loader test14 - test loading middleware individually', function () {
+    var testLoader;
+
+    beforeEach(function () {
+        testLoader = loader();
+    });
+
+    afterEach(function () {
+        testLoader.unload('service1');
+        testLoader.unload('consumer1');
+        testLoader.unload('consumer2');
+    });
+
+    it('Should init middleware loaded individually by file path', function (done) {
+
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test14/service1.js'));
+        testLoader.loadConsumer(path.resolve(__dirname, 'fixtures/loader/test14/consumer1.js'), 'testprefix');
+        testLoader.loadConsumer(path.resolve(__dirname, 'fixtures/loader/test14/consumer2.js'), 'testprefix');
+
+        var service1 = testLoader.get('service1');
+        var consumer1 = testLoader.get('consumer1');
+        var consumer2 = testLoader.get('consumer2');
+        testLoader.init(function(err1) {
+            testLoader.initConsumers('testprefix', function(err2) {
+                //both consumers if they were init'd will registered themselves with service1
+                assert.ok(service1.get().indexOf('consumer1') > -1);
+                assert.ok(service1.get().indexOf('consumer2') > -1);
+                done(err1 || err2);
+            });
+        });
+    });
+
+});
+
+
+describe('DI Loader test15 - test loading middleware individually with mapped module ids', function () {
+    var testLoader;
+
+    beforeEach(function () {
+        testLoader = loader();
+    });
+
+    afterEach(function () {
+        testLoader.unload('mapped_service_1');
+        testLoader.unload('mapped_consumer_1');
+        testLoader.unload('mapped_consumer_2');
+    });
+
+    it('Should init middleware loaded individually with mapped module ids', function (done) {
+
+        testLoader.loadService(path.resolve(__dirname, 'fixtures/loader/test15/service1.js'),
+                               false,
+                               'mapped_service_1');
+        testLoader.loadConsumer(path.resolve(__dirname, 'fixtures/loader/test15/consumer1.js'),
+                                'testprefix2',
+                                'mapped_consumer_1');
+        testLoader.loadConsumer(path.resolve(__dirname, 'fixtures/loader/test15/consumer2.js'),
+                                'testprefix2',
+                                'mapped_consumer_2');
+
+        var service1 = testLoader.get('mapped_service_1');
+        testLoader.init(function(err1) {
+            testLoader.initConsumers('testprefix2', function(err2) {
+                var consumer1 = testLoader.getConsumer('testprefix2', 'mapped_consumer_1');
+                var consumer2 = testLoader.getConsumer('testprefix2', 'mapped_consumer_2');
+                assert.equal(service1.isInitialized(), true);
+                assert.equal(consumer1.isInitialized(), true);
+                assert.equal(consumer2.isInitialized(), true);
+                done(err1 || err2);
+            });
+        });
+    });
+
+});
